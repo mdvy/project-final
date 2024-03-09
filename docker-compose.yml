@@ -44,24 +44,6 @@ services:
     networks:
       - app-network
 
-#  pgadmin:
-#    container_name: pgadmin
-#    image: dpage/pgadmin4:8.2
-#    environment:
-#      PGADMIN_DEFAULT_EMAIL: "admin@gmail.com"
-#      PGADMIN_DEFAULT_PASSWORD: "password"
-#      PGADMIN_CONFIG_SERVER_MODE: "False"
-#    ports:
-#      - "5050:80"
-#    restart: unless-stopped
-#    deploy:
-#      resources:
-#        limits:
-#          cpus: '1'
-#          memory: 100M
-#    networks:
-#      - app-network
-
   nginx:
     container_name: nginx
     image: nginx
@@ -78,7 +60,7 @@ services:
       - app-network
 
   app:
-    container_name: spring-app
+    container_name: JiraRushApp
     build:
       context: .
       dockerfile: Dockerfile
