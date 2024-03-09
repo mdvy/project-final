@@ -1,0 +1,114 @@
+version: '3.9'
+
+services:
+
+  postgresql:
+    container_name: postgres-db
+    image: postgres
+    ports:
+      - "5432:5432"
+    restart: always
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./src/main/resources/db/changelog.sql:/docker-entrypoint-initdb.d/changelog.sql
+      - ./src/main/resources/data4dev/data.sql:/docker-entrypoint-initdb.d/data.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - app-network
+
+  postgres-db-test:
+    container_name: postgres-db-test
+    image: postgres
+    ports:
+      - "5433:5432"
+    restart: always
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: "${TEST_DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - ./pgdata-test:/var/lib/postgresql/data
+      - ./src/main/resources/db/changelog-test.sql:/docker-entrypoint-initdb.d/changelog-test.sql
+      - ./src/test/resources/data.sql:/docker-entrypoint-initdb.d/data.sql
+    networks:
+      - app-network
+
+#  pgadmin:
+#    container_name: pgadmin
+#    image: dpage/pgadmin4:8.2
+#    environment:
+#      PGADMIN_DEFAULT_EMAIL: "admin@gmail.com"
+#      PGADMIN_DEFAULT_PASSWORD: "password"
+#      PGADMIN_CONFIG_SERVER_MODE: "False"
+#    ports:
+#      - "5050:80"
+#    restart: unless-stopped
+#    deploy:
+#      resources:
+#        limits:
+#          cpus: '1'
+#          memory: 100M
+#    networks:
+#      - app-network
+
+  nginx:
+    container_name: nginx
+    image: nginx
+    ports:
+      - "80:80"
+    restart: always
+    volumes:
+      - ./config/:/etc/nginx/conf.d
+      - ./resources/:/opt/jirarush/resources
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  app:
+    container_name: spring-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    expose:
+      - "8080"
+    restart: always
+    environment:
+      - "DB_URL=${DB_URL}"
+      - "DB_USER=${DB_USER}"
+      - "DB_PASSWORD=${DB_PASSWORD}"
+      - "SERVER_PORT=8080"
+      - "SPRING_PROFILES_ACTIVE=prod"
+      - "APP_HOST=${APP_HOST}"
+      - "GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}"
+      - "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
+      - "GITLAB_CLIENT_ID=${GITLAB_CLIENT_ID}"
+      - "MAIL_HOST=${MAIL_HOST}"
+      - "MAIL_USERNAME=${MAIL_USERNAME}"
+      - "MAIL_PASSWORD=${MAIL_PASSWORD}"
+      - "MAIL_PORT=${MAIL_PORT}"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      nginx:
+        condition: service_started
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
